@@ -99,11 +99,11 @@ signalCoods = [(530,230),(810,230),(810,570),(530,570)]
 signalTimerCoods = [(530,210),(810,210),(810,550),(530,550)]
 
 # Move vehicle count coordinates even further to the left/right to avoid any overlap
-vehicleCountCoods = [(380,210),(960,210),(960,550),(380,550)]
+vehicleCountCoods = [(300,210),(1430,210),(1430,550),(300,550)]
 vehicleCountTexts = ["0", "0", "0", "0"]
 
 # Move waiting vehicle counts to positions that don't overlap with timers
-waitingVehicleCoods = [(380,240),(960,240),(960,580),(380,580)]
+waitingVehicleCoods = [(300,240),(1430,240),(1430,580),(300,580)]
 waitingVehicleTexts = ["0", "0", "0", "0"]
 
 # Coordinates of stop lines
@@ -230,98 +230,115 @@ def updateMetrics():
 
 # Add function to draw advanced metrics
 def drawAdvancedMetrics(screen, font):
+    # Define panel dimensions and position
+    panel_width = 600  # Final width increase
+    panel_height = 200 # Keep height
+    panel_x = 820      # Adjusted position slightly left again
+    panel_y = 80       # Keep y position
+
     # Background for metrics panel
-    metrics_bg = pygame.Surface((500, 180))
+    metrics_bg = pygame.Surface((panel_width, panel_height))
     metrics_bg.fill((0, 0, 0))
     metrics_bg.set_alpha(200)  # Semi-transparent
-    screen.blit(metrics_bg, (880, 100))
-    
+    screen.blit(metrics_bg, (panel_x, panel_y))
+
+    # Define column x-coordinates relative to panel_x with more spacing
+    col_direction = panel_x + 15
+    col_max_wait = panel_x + 90  # Adjusted spacing
+    col_queue = panel_x + 230     # Adjusted spacing
+    col_efficiency = panel_x + 330  # Adjusted spacing
+    col_avg_wait = panel_x + 450    # Pushed further right
+    # Estimate column widths for centering
+    col_max_wait_width = col_queue - col_max_wait
+    col_queue_width = col_efficiency - col_queue
+    col_efficiency_width = col_avg_wait - col_efficiency
+    col_avg_wait_width = (panel_x + panel_width) - col_avg_wait
+
+    # Define row y-coordinates relative to panel_y
+    row_title = panel_y + 10
+    row_header = panel_y + 40
+    row_data_start = panel_y + 70
+    row_spacing = 30
+    row_totals = panel_y + 180 # Position for total vehicles/throughput - Moved down 10px
+
     # Title
-    title = font.render("ADVANCED METRICS (ADAPTIVE)", True, (255, 255, 0))
-    screen.blit(title, (900, 110))
-    
-    # Direction labels
-    directions = ["LEFT", "TOP", "RIGHT", "BOTTOM"]
-    for i, direction in enumerate(directions):
-        dir_text = font.render(direction, True, (255, 255, 255))
-        screen.blit(dir_text, (900, 140 + i * 30))
-    
-    # Max waiting time
-    max_wait_title = font.render("Max Wait (s)", True, (255, 255, 255))
-    screen.blit(max_wait_title, (1000, 140))
-    
+    title_text = "ADVANCED METRICS (ADAPTIVE)" # Assuming this file is adaptive, adjust if needed
+    title_render = font.render(title_text, True, (255, 255, 0))
+    title_rect = title_render.get_rect(center=(panel_x + panel_width // 2, row_title + 10))
+    screen.blit(title_render, title_rect)
+
+    # Headers
+    headers = ["Dir", "Max Wait (s)", "Queue", "Efficiency", "Avg Wait (s)"]
+    header_coords = [col_direction, col_max_wait, col_queue, col_efficiency, col_avg_wait]
+    for i, header in enumerate(headers):
+        header_render = font.render(header, True, (255, 255, 255))
+        screen.blit(header_render, (header_coords[i], row_header))
+
+    # Direction labels and Data
+    directions_display = ["LEFT", "TOP", "RIGHT", "BOTTOM"] # Use display names
     for i in range(4):
-        # Color code based on waiting time
-        if maxWaitingTime[i] < 30:
-            color = (0, 255, 0)  # Green for good
-        elif maxWaitingTime[i] < 60:
-            color = (255, 255, 0)  # Yellow for moderate
-        else:
-            color = (255, 0, 0)  # Red for bad
-            
-        max_wait = font.render(f"{maxWaitingTime[i]:.1f}", True, color)
-        screen.blit(max_wait, (1000, 170 + i * 30))
-    
-    # Current queue length
-    queue_title = font.render("Queue", True, (255, 255, 255))
-    screen.blit(queue_title, (1080, 140))
-    
-    for i in range(4):
-        # Color code based on queue length
+        row_y = row_data_start + i * row_spacing
+
+        # Direction (Left-aligned)
+        dir_text = font.render(directions_display[i], True, (255, 255, 255))
+        screen.blit(dir_text, (col_direction, row_y))
+
+        # Max waiting time (Center-aligned)
+        max_wait_val = maxWaitingTime[i]
+        color = (0, 255, 0) if max_wait_val < 30 else ((255, 255, 0) if max_wait_val < 60 else (255, 0, 0))
+        max_wait_render = font.render(f"{max_wait_val:.1f}", True, color)
+        max_wait_rect = max_wait_render.get_rect(centerx=col_max_wait + col_max_wait_width // 2, y=row_y)
+        screen.blit(max_wait_render, max_wait_rect)
+
+        # Current queue length (Center-aligned)
         queue_length = 0
         direction = directionNumbers[i]
         for lane in range(3):
             for vehicle in vehicles[direction][lane]:
                 if vehicle.crossed == 0:
                     queue_length += 1
-        
-        if queue_length < 10:
-            color = (0, 255, 0)  # Green for good
-        elif queue_length < 20:
-            color = (255, 255, 0)  # Yellow for moderate
-        else:
-            color = (255, 0, 0)  # Red for bad
-            
-        queue_text = font.render(f"{queue_length}", True, color)
-        screen.blit(queue_text, (1080, 170 + i * 30))
-    
-    # Efficiency
-    eff_title = font.render("Efficiency", True, (255, 255, 255))
-    screen.blit(eff_title, (1150, 140))
-    
-    for i in range(4):
-        if trafficEfficiency[i] > 0:
-            eff_text = font.render(f"{trafficEfficiency[i]:.2f}", True, (0, 255, 255))
-            screen.blit(eff_text, (1150, 170 + i * 30))
-        else:
-            eff_text = font.render("0.00", True, (0, 255, 255))
-            screen.blit(eff_text, (1150, 170 + i * 30))
-    
-    # Avg waiting time
-    avg_title = font.render("Avg Wait (s)", True, (255, 255, 255))
-    screen.blit(avg_title, (1250, 140))
-    
-    for i in range(4):
+        color = (0, 255, 0) if queue_length < 10 else ((255, 255, 0) if queue_length < 20 else (255, 0, 0))
+        queue_render = font.render(f"{queue_length}", True, color)
+        queue_rect = queue_render.get_rect(centerx=col_queue + col_queue_width // 2, y=row_y)
+        screen.blit(queue_render, queue_rect)
+
+        # Efficiency (Center-aligned)
+        eff_val = trafficEfficiency[i]
+        eff_text = f"{eff_val:.2f}" if eff_val > 0 else "0.00"
+        eff_render = font.render(eff_text, True, (0, 255, 255))
+        eff_rect = eff_render.get_rect(centerx=col_efficiency + col_efficiency_width // 2, y=row_y)
+        screen.blit(eff_render, eff_rect)
+
+        # Avg waiting time (Center-aligned)
+        avg_wait_val = 0.0
         if vehiclesProcessed[i] > 0:
-            avg_wait = totalWaitingTime[i] / vehiclesProcessed[i]
-            color = (0, 255, 0) if avg_wait < 15 else ((255, 255, 0) if avg_wait < 30 else (255, 0, 0))
-            avg_text = font.render(f"{avg_wait:.1f}", True, color)
+            avg_wait_val = totalWaitingTime[i] / vehiclesProcessed[i]
+            color = (0, 255, 0) if avg_wait_val < 15 else ((255, 255, 0) if avg_wait_val < 30 else (255, 0, 0))
+            avg_text = f"{avg_wait_val:.1f}"
         else:
-            avg_text = font.render("0.0", True, (0, 255, 0))
-        screen.blit(avg_text, (1250, 170 + i * 30))
-    
-    # Draw overall efficiency metrics at the bottom
-    total_vehicles = 0
+            color = (0, 255, 0)
+            avg_text = "0.0"
+        avg_render = font.render(avg_text, True, color)
+        avg_rect = avg_render.get_rect(centerx=col_avg_wait + col_avg_wait_width // 2, y=row_y)
+        screen.blit(avg_render, avg_rect)
+
+    # Draw overall efficiency metrics at the bottom of the panel
+    total_vehicles_passed = 0
     for i in range(noOfSignals):
-        total_vehicles += vehicles[directionNumbers[i]]['crossed']
-    
-    total_vehicles_text = font.render(f"Total vehicles: {total_vehicles}", True, (255, 255, 255))
-    screen.blit(total_vehicles_text, (900, 260))
-    
+        total_vehicles_passed += vehicles[directionNumbers[i]]['crossed']
+
+    total_vehicles_render = font.render(f"Total passed: {total_vehicles_passed}", True, (255, 255, 255))
+    # Position Total passed near the left
+    screen.blit(total_vehicles_render, (col_direction, row_totals))
+
     if timeElapsed > 0:
-        throughput = total_vehicles / timeElapsed
-        throughput_text = font.render(f"Throughput: {throughput:.2f} veh/s", True, (255, 255, 255))
-        screen.blit(throughput_text, (1100, 260))
+        throughput_val = total_vehicles_passed / timeElapsed
+        throughput_text = f"Throughput: {throughput_val:.2f} veh/s"
+    else:
+        throughput_text = "Throughput: 0.00 veh/s"
+    throughput_render = font.render(throughput_text, True, (255, 255, 255))
+    # Position throughput aligned with the Efficiency column
+    screen.blit(throughput_render, (col_efficiency, row_totals))
 
 class TrafficSignal:
     def __init__(self, red, yellow, green, minimum, maximum):
@@ -399,16 +416,17 @@ class Vehicle(pygame.sprite.Sprite):
     def move(self):
         # Check if vehicle starts waiting
         isWaiting = False
-        
+        direction_index = self.direction_number # Get the index (0-3) for metrics
+
         if(self.direction=='right'):
             if(self.crossed==0 and self.x+self.currentImage.get_rect().width>stopLines[self.direction]):   # if the image has crossed stop line now
                 self.crossed = 1
                 vehicles[self.direction]['crossed'] += 1
-                if self.waitStartTime is not None:
-                    self.totalWaitTime += time.time() - self.waitStartTime
-                    vehiclesProcessed[0] += 1
-                    totalWaitingTime[0] += self.totalWaitTime
-                self.waiting = False
+                # Update Avg Wait metrics if the vehicle waited at all
+                if self.totalWaitTime > 0:
+                    vehiclesProcessed[direction_index] += 1
+                    totalWaitingTime[direction_index] += self.totalWaitTime
+                self.waiting = False # Ensure waiting is false after crossing
                 self.waitStartTime = None
             if(self.willTurn==1):
                 if(self.crossed==0 or self.x+self.currentImage.get_rect().width<mid[self.direction]['x']):
@@ -444,11 +462,11 @@ class Vehicle(pygame.sprite.Sprite):
             if(self.crossed==0 and self.y+self.currentImage.get_rect().height>stopLines[self.direction]):
                 self.crossed = 1
                 vehicles[self.direction]['crossed'] += 1
-                if self.waitStartTime is not None:
-                    self.totalWaitTime += time.time() - self.waitStartTime
-                    vehiclesProcessed[1] += 1
-                    totalWaitingTime[1] += self.totalWaitTime
-                self.waiting = False
+                # Update Avg Wait metrics if the vehicle waited at all
+                if self.totalWaitTime > 0:
+                    vehiclesProcessed[direction_index] += 1
+                    totalWaitingTime[direction_index] += self.totalWaitTime
+                self.waiting = False # Ensure waiting is false after crossing
                 self.waitStartTime = None
             if(self.willTurn==1):
                 if(self.crossed==0 or self.y+self.currentImage.get_rect().height<mid[self.direction]['y']):
@@ -477,11 +495,11 @@ class Vehicle(pygame.sprite.Sprite):
             if(self.crossed==0 and self.x<stopLines[self.direction]):
                 self.crossed = 1
                 vehicles[self.direction]['crossed'] += 1
-                if self.waitStartTime is not None:
-                    self.totalWaitTime += time.time() - self.waitStartTime
-                    vehiclesProcessed[2] += 1
-                    totalWaitingTime[2] += self.totalWaitTime
-                self.waiting = False
+                # Update Avg Wait metrics if the vehicle waited at all
+                if self.totalWaitTime > 0:
+                    vehiclesProcessed[direction_index] += 1
+                    totalWaitingTime[direction_index] += self.totalWaitTime
+                self.waiting = False # Ensure waiting is false after crossing
                 self.waitStartTime = None
             if(self.willTurn==1):
                 if(self.crossed==0 or self.x>mid[self.direction]['x']):
@@ -517,11 +535,11 @@ class Vehicle(pygame.sprite.Sprite):
             if(self.crossed==0 and self.y<stopLines[self.direction]):
                 self.crossed = 1
                 vehicles[self.direction]['crossed'] += 1
-                if self.waitStartTime is not None:
-                    self.totalWaitTime += time.time() - self.waitStartTime
-                    vehiclesProcessed[3] += 1
-                    totalWaitingTime[3] += self.totalWaitTime
-                self.waiting = False
+                # Update Avg Wait metrics if the vehicle waited at all
+                if self.totalWaitTime > 0:
+                    vehiclesProcessed[direction_index] += 1
+                    totalWaitingTime[direction_index] += self.totalWaitTime
+                self.waiting = False # Ensure waiting is false after crossing
                 self.waitStartTime = None
             if(self.willTurn==1):
                 if(self.crossed==0 or self.y>mid[self.direction]['y']):
@@ -548,7 +566,7 @@ class Vehicle(pygame.sprite.Sprite):
                 else:
                     isWaiting = True
 
-        # Update waiting status
+        # Update waiting status (This part accumulates self.totalWaitTime correctly)
         if isWaiting and not self.waiting and self.crossed == 0:
             self.waiting = True
             self.waitStartTime = time.time()
